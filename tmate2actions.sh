@@ -8,7 +8,7 @@
 # https://github.com/P3TERX/ssh2actions
 # File name：tmate2actions.sh
 # Description: Connect to Github Actions VM via SSH by using tmate
-# Version: 2.0
+# Version: 2.1
 #
 
 set -e
@@ -26,7 +26,12 @@ CONTINUE_FILE="/tmp/continue"
 # Install tmate on macOS or Ubuntu
 echo -e "${INFO} Setting up tmate ..."
 if [[ -n "$(uname | grep Linux)" ]]; then
-    curl -fsSL git.io/tmate.sh | bash
+    if [[ -x "$(command -v apt-get)" ]]; then
+        sudo apt-get -qq update
+        sudo apt-get -qq install -y tmate
+    else
+        curl -fsSL https://raw.githubusercontent.com/tmate-io/tmate/master/scripts/install.sh | bash
+    fi
 elif [[ -x "$(command -v brew)" ]]; then
     brew install tmate
 else
@@ -36,6 +41,18 @@ fi
 
 # Generate ssh key if needed
 [[ -e ~/.ssh/id_rsa ]] || ssh-keygen -t rsa -f ~/.ssh/id_rsa -q -N ""
+
+# Use self-hosted tmate server (optional)
+# Set TMATE_SERVER_HOST to use your own tmate server instead of the public tmate.io server
+if [[ -n "${TMATE_SERVER_HOST}" ]]; then
+    echo -e "${INFO} Using self-hosted tmate server: ${TMATE_SERVER_HOST}:${TMATE_SERVER_PORT:-2200} ..."
+    {
+        echo "set -g tmate-server-host \"${TMATE_SERVER_HOST}\""
+        [[ -n "${TMATE_SERVER_PORT}" ]] && echo "set -g tmate-server-port \"${TMATE_SERVER_PORT}\""
+        [[ -n "${TMATE_SERVER_RSA_FP}" ]] && echo "set -g tmate-server-rsa-fingerprint \"${TMATE_SERVER_RSA_FP}\""
+        [[ -n "${TMATE_SERVER_ED25519_FP}" ]] && echo "set -g tmate-server-ed25519-fingerprint \"${TMATE_SERVER_ED25519_FP}\""
+    } > ~/.tmate.conf
+fi
 
 # Run deamonized tmate
 echo -e "${INFO} Running tmate..."
@@ -56,6 +73,12 @@ ${TMATE_WEB}
 
 🔔 *TIPS:*
 Run '\`touch ${CONTINUE_FILE}\`' to continue to the next step.
+
+📦 *Repo:*
+\`${GITHUB_REPOSITORY}\`
+
+🏃 *Run:*
+[Run ${GITHUB_RUN_ID}](https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})
 "
 
 if [[ -n "${TELEGRAM_BOT_TOKEN}" && -n "${TELEGRAM_CHAT_ID}" ]]; then
