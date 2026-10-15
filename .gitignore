@@ -1,0 +1,11 @@
+\#*
+*~
+*.swp
+*.exe
+.idea
+.vscode/launch.json
+.DS_Store
+__debug_*
+CLAUDE.md
+.vscode
+.claude

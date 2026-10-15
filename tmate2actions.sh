@@ -8,7 +8,7 @@
 # https://github.com/P3TERX/ssh2actions
 # File name：tmate2actions.sh
 # Description: Connect to Github Actions VM via SSH by using tmate
-# Version: 2.1
+# Version: 2.2
 #
 
 set -e
@@ -27,8 +27,14 @@ CONTINUE_FILE="/tmp/continue"
 echo -e "${INFO} Setting up tmate ..."
 if [[ -n "$(uname | grep Linux)" ]]; then
     if [[ -x "$(command -v apt-get)" ]]; then
-        sudo apt-get -qq update
-        sudo apt-get -qq install -y tmate
+        sudo apt-get -qq update &>/dev/null || {
+            echo -e "${ERROR} 'apt-get update' failed!"
+            exit 1
+        }
+        sudo apt-get -qq install -y tmate &>/dev/null || {
+            echo -e "${ERROR} tmate installation failed!"
+            exit 1
+        }
     else
         curl -fsSL https://raw.githubusercontent.com/tmate-io/tmate/master/scripts/install.sh | bash
     fi
@@ -67,9 +73,12 @@ MSG="
 
 ⚡ *CLI:*
 \`${TMATE_SSH}\`
-
+"
+[[ -n "${TMATE_WEB}" ]] && MSG+="
 🔗 *URL:*
 ${TMATE_WEB}
+"
+MSG+="
 
 🔔 *TIPS:*
 Run '\`touch ${CONTINUE_FILE}\`' to continue to the next step.
@@ -93,24 +102,10 @@ if [[ -n "${TELEGRAM_BOT_TOKEN}" && -n "${TELEGRAM_CHAT_ID}" ]]; then
         echo -e "${ERROR} Telegram message sending failed: $(cat ${TELEGRAM_LOG})"
     else
         echo -e "${INFO} Telegram message sent successfully!"
+        echo -e "${INFO} CLI: ${Green_font_prefix}${TMATE_SSH}${Font_color_suffix}"
+        echo -e "${INFO} TIPS: Run 'touch ${CONTINUE_FILE}' to continue to the next step."
     fi
 fi
-
-while ((${PRT_COUNT:=1} <= ${PRT_TOTAL:=10})); do
-    SECONDS_LEFT=${PRT_INTERVAL_SEC:=10}
-    while ((${PRT_COUNT} > 1)) && ((${SECONDS_LEFT} > 0)); do
-        echo -e "${INFO} (${PRT_COUNT}/${PRT_TOTAL}) Please wait ${SECONDS_LEFT}s ..."
-        sleep 1
-        SECONDS_LEFT=$((${SECONDS_LEFT} - 1))
-    done
-    echo "-----------------------------------------------------------------------------------"
-    echo "To connect to this session copy and paste the following into a terminal or browser:"
-    echo -e "CLI: ${Green_font_prefix}${TMATE_SSH}${Font_color_suffix}"
-    echo -e "URL: ${Green_font_prefix}${TMATE_WEB}${Font_color_suffix}"
-    echo -e "TIPS: Run 'touch ${CONTINUE_FILE}' to continue to the next step."
-    echo "-----------------------------------------------------------------------------------"
-    PRT_COUNT=$((${PRT_COUNT} + 1))
-done
 
 while [[ -S ${TMATE_SOCK} ]]; do
     sleep 1
